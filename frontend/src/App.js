@@ -10,7 +10,7 @@ import cloneDeep from "lodash/cloneDeep";
 import Quill from "quill";
 import QuillCursors from "quill-cursors";
 import "quill/dist/quill.snow.css";
-import MousePointer from "./MousePointer";
+import AppUsers from "./AppUsers";
 
 Quill.register("modules/cursors", QuillCursors);
 
@@ -30,6 +30,7 @@ const colors = ["#5551FF", "#0FA958"];
 const getUserColor = index => colors[index % colors.length];
 
 function App() {
+  const [user, setUser] = useState(null);
   const [doc, setDoc] = useState(null);
   const [presences, setPresences] = useState({});
   const [error, setError] = useState(null);
@@ -40,9 +41,8 @@ function App() {
   
 
   const presenceCallback = (id, data) => {
-    // callback to recieve status changes of other collaborators
-    /* console.log("Presence: id=", id, " payload=" + JSON.stringify(data)); */
-    if (!data) { // delete this presence, the user is offline
+    // callback to recieve status changes of other collaborators    
+    if (!data) { // if data is empty, then delete this presence, because the user is offline
       setPresences(prev => {
         const newState = cloneDeep(prev);
         delete newState[id];
@@ -51,11 +51,9 @@ function App() {
           const cursors = editorRef.current.getModule("cursors");
           cursors.removeCursor(id);
         }
-
         return newState;
       });
-    } else if (data.user && data.user.id) {
-      
+    } else if (data.user && data.user.id) {      
       setPresences(prev => {
         const newState = cloneDeep(prev);
         newState[id] = {
@@ -74,8 +72,7 @@ function App() {
           } else {
             cursors.removeCursor(id);
           }
-        }        
-
+        }
         return newState;
       });
     }
@@ -84,42 +81,31 @@ function App() {
  
   useEffect(() => {
     // 1. step - connect
-
     okdb
       .connect(TOKEN)
       .then(user => {
+        setUser(user);
         // 2. step - open document for collaborative editing
         const defaultValue =  [{
           insert: 'Hello world\n'
         }];
-
         const onOperation = (data, meta) => {
-          // callback to receive changes from others    
-          //const current = editorRef.current.getContents();
+          // callback to receive changes from others          
           console.log("onOperation", data, meta);
           if (editorRef.current) {
             console.log("Editor update", data);
             editorRef.current.updateContents(data);
-          }
-          /*
-          if (meta.changes.length > 0) {
-            console.log("updateCallback: ", data, JSON.stringify(meta));
-            const newDoc = cloneDeep(data);
-            setDoc(newDoc);
-          }
-          */
-        };
-      
+          }         
+        };      
 
-        okdb
-          .open(
+        okdb.open(
             DATA_TYPE, // collection name
             DOCUMENT_ID,
             defaultValue, // default value to save if doesn't exist yet
             {
               type: "rich-text",
-              onPresence: presenceCallback,
-              onOp: onOperation
+              onPresence: presenceCallback, // changes for online status and cursors
+              onOp: onOperation // process incremental delta changes directly, supported by Quill
             }            
           )
           .then(data => {
@@ -166,13 +152,11 @@ function App() {
     editor.on("selection-change", function (range, oldRange, source) {
       console.log("Local cursor change: ", range);
       editorCursorRef.current = range;
-      if(connectedRef.current) {
-        /*
+      if(connectedRef.current) {        
         okdb.sendPresence({
           editorCursor: range,
           mousePointer: mousePointerRef.current
-        });
-        */
+        });        
       }
     });
   }, [editorRef]);
@@ -191,26 +175,12 @@ function App() {
         top,
       };
       mousePointerRef.current = value;
-      if(connectedRef.current) {
-        /*
+      if(connectedRef.current) {        
         okdb.sendPresence({
           mousePointer: value,
           editorCursor: editorCursorRef.current    
-        });
-        */
-      }
-      /*
-      document.addEventListener("mouseleave", () => {
-        editorRef.current.blur()
-        okdb.sendPresence({
-          type: "cursor",
-          target: "canvas",
-          left,
-          top,
-          presencesRange: null,
-        });
-      });
-      */
+        });        
+      }      
     };
 
     window.addEventListener("mousemove", handler);
@@ -231,9 +201,7 @@ function App() {
       <Grid container spacing={3}>
         <Grid item md={9}>
           <h1>Collaborative Work in Editor</h1>
-
           {error && <Alert severity="error">{error}</Alert>}
-
           <Paper>
             <div id="editor-container"></div>
           </Paper>
@@ -251,55 +219,9 @@ function App() {
               >
                 <circle cx="5" cy="5" r="5"></circle>
               </svg>
-              me
+              me ({user ? user.name : "connecting..."})
             </div>
-            {Object.keys(presences).map((presenceId, index) => {
-              const presence = presences[presenceId];
-              const userColor = presence.color;
-              let left = 0;
-              let top = 0;
-              if (presence.left != null) {
-                const container = document.querySelector("#editor-container");
-                if (container) {
-                  const containerRect = container.getBoundingClientRect();
-                  top = containerRect.top + presence.top + "px";
-                  left = containerRect.left + presence.left + "px";
-                }
-              }
-
-              return (
-                <div className="online-item" key={presenceId}>
-                  <svg
-                    width="10"
-                    fill={userColor}
-                    focusable="false"
-                    viewBox="0 0 10 10"
-                    aria-hidden="true"
-                    title="fontSize small"
-                  >
-                    <circle cx="5" cy="5" r="5"></circle>
-                  </svg>
-                  {presence.user.name}
-                  {presence.left != null && (
-                    <div
-                      id="cursor"
-                      className="cursor-block"
-                      style={{ left, top }}
-                    >
-                      <MousePointer color={userColor} />
-                      <div className="cursor-name-container">
-                        <div
-                          className="cursor-name"
-                          style={{ backgroundColor: userColor }}
-                        >
-                          {presence.user.name}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+            <AppUsers presences={presences} />
           </div>
         </Grid>
       </Grid>
