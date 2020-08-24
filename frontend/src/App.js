@@ -14,7 +14,7 @@ import AppUsers from "./AppUsers";
 
 Quill.register("modules/cursors", QuillCursors);
 
-const HOST = "http://192.168.178.20:7899"; // location of your server, use xxxxx to use sample, or follow this guide to build your own:
+const HOST = "http://localhost:7899"; // location of your server, use xxxxx to use sample, or follow this guide to build your own:
 const TOKEN = "12345"; // either get it from your auth provider and validate with system integration, or use default system users:
 const okdb = new OkdbClient(HOST, { timeout: 30000 });
 window.okdb = okdb;
