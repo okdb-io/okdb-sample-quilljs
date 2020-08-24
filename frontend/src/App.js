@@ -14,7 +14,7 @@ import MousePointer from "./MousePointer";
 
 Quill.register("modules/cursors", QuillCursors);
 
-const HOST = "http://192.168.178.20:7899"; // location of your server, use xxxxx to use sample, or follow this guide to build your own:
+const HOST = "http://192.168.178.44:7899"; // location of your server, use xxxxx to use sample, or follow this guide to build your own:
 const TOKEN = "12345"; // either get it from your auth provider and validate with system integration, or use default system users:
 const okdb = new OkdbClient(HOST, { timeout: 30000 });
 window.okdb = okdb;
@@ -54,8 +54,7 @@ function App() {
 
         return newState;
       });
-    } else if (data.user && data.user.id) {
-      
+    } else if (data.user && data.user.id) {      
       setPresences(prev => {
         const newState = cloneDeep(prev);
         newState[id] = {
@@ -100,14 +99,7 @@ function App() {
           if (editorRef.current) {
             console.log("Editor update", data);
             editorRef.current.updateContents(data);
-          }
-          /*
-          if (meta.changes.length > 0) {
-            console.log("updateCallback: ", data, JSON.stringify(meta));
-            const newDoc = cloneDeep(data);
-            setDoc(newDoc);
-          }
-          */
+          }         
         };
       
 
@@ -167,12 +159,12 @@ function App() {
       console.log("Local cursor change: ", range);
       editorCursorRef.current = range;
       if(connectedRef.current) {
-        /*
+        
         okdb.sendPresence({
           editorCursor: range,
           mousePointer: mousePointerRef.current
         });
-        */
+        
       }
     });
   }, [editorRef]);
@@ -191,26 +183,12 @@ function App() {
         top,
       };
       mousePointerRef.current = value;
-      if(connectedRef.current) {
-        /*
+      if(connectedRef.current) {        
         okdb.sendPresence({
           mousePointer: value,
           editorCursor: editorCursorRef.current    
-        });
-        */
+        });        
       }
-      /*
-      document.addEventListener("mouseleave", () => {
-        editorRef.current.blur()
-        okdb.sendPresence({
-          type: "cursor",
-          target: "canvas",
-          left,
-          top,
-          presencesRange: null,
-        });
-      });
-      */
     };
 
     window.addEventListener("mousemove", handler);
@@ -258,15 +236,15 @@ function App() {
               const userColor = presence.color;
               let left = 0;
               let top = 0;
-              if (presence.left != null) {
+              if (presence.mousePointer != null) {
                 const container = document.querySelector("#editor-container");
                 if (container) {
                   const containerRect = container.getBoundingClientRect();
-                  top = containerRect.top + presence.top + "px";
-                  left = containerRect.left + presence.left + "px";
+                  top = containerRect.top + presence.mousePointer.top + "px";
+                  left = containerRect.left + presence.mousePointer.left + "px";
                 }
               }
-
+              
               return (
                 <div className="online-item" key={presenceId}>
                   <svg
@@ -280,7 +258,7 @@ function App() {
                     <circle cx="5" cy="5" r="5"></circle>
                   </svg>
                   {presence.user.name}
-                  {presence.left != null && (
+                  {presence.mousePointer && presence.mousePointer.left !== null && (
                     <div
                       id="cursor"
                       className="cursor-block"
